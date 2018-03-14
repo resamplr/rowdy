@@ -19,17 +19,17 @@
 //! ```
 
 #![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations,
-        unknown_lints, unsafe_code)]
-#![deny(const_err, dead_code, deprecated, exceeding_bitshifts, fat_ptr_transmutes, improper_ctypes,
-       missing_docs, mutable_transmutes, no_mangle_const_items, non_camel_case_types,
-       non_shorthand_field_patterns, non_upper_case_globals, overflowing_literals,
-       path_statements, plugin_as_library, private_no_mangle_fns, private_no_mangle_statics,
-       stable_features, trivial_casts, trivial_numeric_casts, unconditional_recursion,
-       unknown_crate_types, unreachable_code, unused_allocation, unused_assignments,
-       unused_attributes, unused_comparisons, unused_extern_crates, unused_features,
-       unused_imports, unused_import_braces, unused_qualifications, unused_must_use, unused_mut,
-       unused_parens, unused_results, unused_unsafe, unused_variables, variant_size_differences,
-       warnings, while_true)]
+         unknown_lints, unsafe_code)]
+#![deny(const_err, dead_code, deprecated, exceeding_bitshifts, fat_ptr_transmutes,
+        improper_ctypes, missing_docs, mutable_transmutes, no_mangle_const_items,
+        non_camel_case_types, non_shorthand_field_patterns, non_upper_case_globals,
+        overflowing_literals, path_statements, plugin_as_library, private_no_mangle_fns,
+        private_no_mangle_statics, stable_features, trivial_casts, trivial_numeric_casts,
+        unconditional_recursion, unknown_crate_types, unreachable_code, unused_allocation,
+        unused_assignments, unused_attributes, unused_comparisons, unused_extern_crates,
+        unused_features, unused_imports, unused_import_braces, unused_qualifications,
+        unused_must_use, unused_mut, unused_parens, unused_results, unused_unsafe,
+        unused_variables, variant_size_differences, warnings, while_true)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 #[macro_use]
@@ -108,15 +108,9 @@ impl From<diesel::result::Error> for Error {
     }
 }
 
-impl From<r2d2::InitializationError> for Error {
-    fn from(_: r2d2::InitializationError) -> Error {
+impl From<r2d2::Error> for Error {
+    fn from(_: r2d2::Error) -> Error {
         Error::InitializationError
-    }
-}
-
-impl From<r2d2::GetTimeout> for Error {
-    fn from(_: r2d2::GetTimeout) -> Error {
-        Error::ConnectionTimeout
     }
 }
 
@@ -169,14 +163,9 @@ where
 impl<T> Authenticator<T>
 where
     T: Connection + 'static,
-    String: diesel::types::FromSql<diesel::types::Text, <T as diesel::Connection>::Backend>,
-    Vec<u8>: diesel::types::FromSql<diesel::types::Binary, <T as diesel::Connection>::Backend>,
+    String: diesel::types::FromSql<diesel::sql_types::Text, <T as diesel::Connection>::Backend>,
+    Vec<u8>: diesel::types::FromSql<diesel::sql_types::Binary, <T as diesel::Connection>::Backend>,
 {
-    /// Creates an authenticator backed by a table in a database using a connection pool.
-    pub(crate) fn new(pool: ConnectionPool<T>) -> Self {
-        Self { pool }
-    }
-
     /// Retrieve a connection to the database from the pool
     pub(crate) fn get_pooled_connection(
         &self,
@@ -187,9 +176,6 @@ where
 
     /// Search for the specified user entry
     fn search(&self, connection: &T, search_user: &str) -> Result<Vec<User>, Error> {
-        use diesel::FilterDsl;
-        use diesel::ExpressionMethods;
-        use diesel::LoadDsl;
         use schema::users::dsl::*;
 
         debug_!("Querying user {} from database", search_user);
@@ -219,8 +205,7 @@ where
             JsonValue::Object(ref map) => {
                 let user = map.get("user").ok_or_else(|| Error::AuthenticationFailure)?;
                 // TODO verify the user object matches the database
-                Ok(value::from_value(user.clone())
-                    .map_err(|_| Error::AuthenticationFailure)?)
+                Ok(value::from_value(user.clone()).map_err(|_| Error::AuthenticationFailure)?)
             }
             _ => Err(Error::AuthenticationFailure),
         }
@@ -286,8 +271,8 @@ where
 impl<T> auth::Authenticator<Basic> for Authenticator<T>
 where
     T: Connection + 'static,
-    String: diesel::types::FromSql<diesel::types::Text, <T as diesel::Connection>::Backend>,
-    Vec<u8>: diesel::types::FromSql<diesel::types::Binary, <T as diesel::Connection>::Backend>,
+    String: diesel::types::FromSql<diesel::sql_types::Text, <T as diesel::Connection>::Backend>,
+    Vec<u8>: diesel::types::FromSql<diesel::sql_types::Binary, <T as diesel::Connection>::Backend>,
 {
     fn authenticate(
         &self,
